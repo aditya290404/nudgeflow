@@ -7,10 +7,7 @@ I built **NudgeFlow**, a full-stack, AI-enhanced CRM designed for direct-to-cons
 I wanted to go beyond just building a basic CRUD app, so I integrated **Google Gemini** to make the CRM truly "AI-Native" and implemented a robust database architecture to handle high-concurrency webhook scenarios.
 
 ## 🚀 Live Demo
-**Frontend URL:** [Insert Vercel Link Here]
-*(Note: Because Vercel is a serverless environment, the webhook simulation has a graceful fallback. For the full, real-time webhook experience, see the walkthrough video or run it locally!)*
-
-**Walkthrough Video:** [Insert Video Link Here]
+**Frontend URL:** https://nudgeflow-2pn9-orpin.vercel.app/
 
 ---
 
