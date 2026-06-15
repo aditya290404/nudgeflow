@@ -1,110 +1,64 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import prisma from "@/lib/prisma";
+import { format } from "date-fns";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 
-export default function CustomersPage() {
-  const [customers, setCustomers] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-
-  const fetchCustomers = async (searchQuery = "") => {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/customers?limit=100&search=${encodeURIComponent(searchQuery)}`);
-      const data = await res.json();
-      setCustomers(data.data || []);
-    } catch (error) {
-      console.error('Failed to fetch customers', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchCustomers();
-  }, []);
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    fetchCustomers(search);
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount);
-  };
+export default async function CustomersPage() {
+  const customers = await prisma.customer.findMany({
+    take: 50,
+    orderBy: { totalSpend: "desc" },
+  });
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="flex-1 space-y-4 p-8 pt-6">
+      <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight text-slate-900">Customers</h2>
-        <form onSubmit={handleSearch} className="flex gap-2">
-          <Input 
-            placeholder="Search by name or email..." 
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-64"
-          />
-        </form>
       </div>
-
-      <div className="rounded-md border bg-white">
+      
+      <div className="rounded-md border bg-white shadow-sm">
         <Table>
-          <TableHeader>
+          <TableHeader className="bg-slate-50">
             <TableRow>
-              <TableHead>Name</TableHead>
+              <TableHead className="w-[200px]">Name</TableHead>
+              <TableHead>Email</TableHead>
               <TableHead>City</TableHead>
+              <TableHead>Tags</TableHead>
               <TableHead className="text-right">Total Orders</TableHead>
               <TableHead className="text-right">Total Spend</TableHead>
-              <TableHead>Last Order</TableHead>
-              <TableHead>Tags</TableHead>
+              <TableHead className="text-right">Last Order</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-10 text-slate-500">Loading...</TableCell>
+            {customers.map((customer) => (
+              <TableRow key={customer.id}>
+                <TableCell className="font-medium">{customer.name}</TableCell>
+                <TableCell className="text-slate-500">{customer.email}</TableCell>
+                <TableCell>{customer.city}</TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap gap-1">
+                    {customer.tags.map(tag => (
+                      <Badge key={tag} variant="secondary" className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200">
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                </TableCell>
+                <TableCell className="text-right">{customer.totalOrders}</TableCell>
+                <TableCell className="text-right font-medium text-slate-900">
+                  ${customer.totalSpend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </TableCell>
+                <TableCell className="text-right text-slate-500">
+                  {customer.lastOrderDate ? format(customer.lastOrderDate, "MMM d, yyyy") : "Never"}
+                </TableCell>
               </TableRow>
-            ) : customers.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-10 text-slate-500">No customers found.</TableCell>
-              </TableRow>
-            ) : (
-              customers.map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell>
-                    <div className="font-medium">{c.name}</div>
-                    <div className="text-sm text-slate-500">{c.email}</div>
-                  </TableCell>
-                  <TableCell>{c.city || '-'}</TableCell>
-                  <TableCell className="text-right">{c.totalOrders}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(c.totalSpend)}</TableCell>
-                  <TableCell>
-                    {c.lastOrderDate ? new Date(c.lastOrderDate).toLocaleDateString('en-IN') : '-'}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {c.tags.map((tag: string) => (
-                        <Badge 
-                          key={tag} 
-                          variant="outline"
-                          className={
-                            tag === 'vip' ? 'border-amber-400 text-amber-600 bg-amber-50' :
-                            tag === 'at_risk' ? 'border-red-400 text-red-600 bg-red-50' :
-                            tag === 'new' ? 'border-emerald-400 text-emerald-600 bg-emerald-50' :
-                            ''
-                          }
-                        >
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
+            ))}
           </TableBody>
         </Table>
       </div>

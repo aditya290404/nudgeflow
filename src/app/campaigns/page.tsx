@@ -1,287 +1,238 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Sparkles, Send, Activity, Plus } from "lucide-react";
 
 export default function CampaignsPage() {
-  const [campaigns, setCampaigns] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  
-  // Modal State
-  const [isOpen, setIsOpen] = useState(false);
-  const [step, setStep] = useState(1);
+  const [isCreating, setIsCreating] = useState(false);
+  const [isDrafting, setIsDrafting] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const [segments, setSegments] = useState<any[]>([]);
+  const [campaigns, setCampaigns] = useState<any[]>([]);
   
   // Form State
   const [name, setName] = useState("");
-  const [segmentId, setSegmentId] = useState("");
-  const [channel, setChannel] = useState("");
+  const [segmentId, setSegmentId] = useState(""); // Hardcoded for demo if needed
+  const [channel, setChannel] = useState("EMAIL");
   const [message, setMessage] = useState("");
-  
-  const [isDrafting, setIsDrafting] = useState(false);
-  const [isLaunching, setIsLaunching] = useState(false);
-
-  const fetchCampaigns = async () => {
-    try {
-      const res = await fetch('/api/campaigns');
-      const data = await res.json();
-      setCampaigns(data);
-    } catch (error) {
-      console.error('Failed to fetch campaigns', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchSegments = async () => {
-    try {
-      const res = await fetch('/api/segments');
-      const data = await res.json();
-      setSegments(data);
-    } catch (error) {
-      console.error('Failed to fetch segments', error);
-    }
-  };
 
   useEffect(() => {
+    const fetchSegments = async () => {
+      try {
+        const res = await fetch('/api/segments');
+        if (res.ok) {
+          const data = await res.json();
+          setSegments(data);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    const fetchCampaigns = async () => {
+      try {
+        const res = await fetch('/api/campaigns');
+        if (res.ok) {
+          const data = await res.json();
+          setCampaigns(data);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    fetchSegments();
     fetchCampaigns();
   }, []);
 
-  // Open modal hook
-  useEffect(() => {
-    if (isOpen) {
-      fetchSegments();
-      setStep(1);
-      setName("");
-      setSegmentId("");
-      setChannel("");
-      setMessage("");
-    }
-  }, [isOpen]);
-
   const handleDraftMessage = async () => {
-    if (!segmentId || !channel) return;
     setIsDrafting(true);
     try {
-      const selectedSegment = segments.find(s => s.id === segmentId);
-      const res = await fetch('/api/ai/draft-message', {
+      const response = await fetch('/api/ai/draft', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          segmentDescription: selectedSegment?.naturalLanguageQuery || selectedSegment?.name, 
-          channel 
-        })
+        body: JSON.stringify({
+          segmentName: "High Value Customers", // Example
+          tone: "Friendly and Urgent",
+        }),
       });
-      const data = await res.json();
-      if (data.draft) {
-        setMessage(data.draft);
-      }
-    } catch (error) {
-      console.error('Failed to draft message', error);
+      const data = await response.json();
+      if (channel === 'EMAIL') setMessage(data.email || '');
+      else if (channel === 'SMS') setMessage(data.sms || '');
+      else if (channel === 'WHATSAPP') setMessage(data.whatsapp || '');
+    } catch (e) {
+      console.error(e);
     } finally {
       setIsDrafting(false);
     }
   };
 
-  const handleLaunch = async () => {
-    setIsLaunching(true);
+  const handleSendCampaign = async () => {
+    // Basic validation
+    if (!name || !segmentId || !message) {
+      alert("Please fill all fields");
+      return;
+    }
+    
+    setIsSending(true);
     try {
-      // 1. Create Campaign
-      const createRes = await fetch('/api/campaigns', {
+      const response = await fetch('/api/campaigns/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, segmentId, message, channel })
+        body: JSON.stringify({ name, segmentId, channel, message }),
       });
-      const campaign = await createRes.json();
-
-      // 2. Trigger Send
-      await fetch(`/api/campaigns/${campaign.id}/send`, {
-        method: 'POST',
-      });
-
-      setIsOpen(false);
-      fetchCampaigns();
+      if (response.ok) {
+        alert("Campaign launched successfully!");
+        setIsCreating(false);
+        // Refresh campaigns
+        const res = await fetch('/api/campaigns');
+        const data = await res.json();
+        setCampaigns(data);
+      } else {
+        const err = await response.json();
+        alert("Error launching campaign: " + err.error);
+      }
     } catch (error) {
-      console.error('Failed to launch campaign', error);
+      console.error(error);
+      alert("Failed to launch campaign.");
     } finally {
-      setIsLaunching(false);
+      setIsSending(false);
     }
   };
 
   return (
-    <div className="space-y-6">
+    <div className="flex-1 space-y-6 p-8 pt-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between">
-        <h2 className="text-3xl font-bold tracking-tight text-slate-900">Campaigns</h2>
-        
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-          <DialogTrigger render={<Button />}>New Campaign</DialogTrigger>
-          <DialogContent className="sm:max-w-[600px]">
-            <DialogHeader>
-              <DialogTitle>Create Campaign (Step {step} of 4)</DialogTitle>
-              <DialogDescription>
-                Launch a new personalized campaign to a customer segment.
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="py-4 min-h-[300px]">
-              {step === 1 && (
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Campaign Name</Label>
-                    <Input id="name" value={name} onChange={e => setName(e.target.value)} placeholder="Summer Sale 2026" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="segment">Target Segment</Label>
-                    <Select value={segmentId} onValueChange={setSegmentId}>
-                      <SelectTrigger id="segment">
-                        <SelectValue placeholder="Select a segment" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {segments.map(s => (
-                          <SelectItem key={s.id} value={s.id}>{s.name} ({s.customerCount} users)</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              )}
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight text-slate-900">Campaigns</h2>
+          <p className="text-slate-500 mt-1">Manage and launch your targeted communications.</p>
+        </div>
+        {!isCreating && (
+          <Button onClick={() => setIsCreating(true)} className="bg-indigo-600 hover:bg-indigo-700">
+            <Plus className="w-4 h-4 mr-2" /> New Campaign
+          </Button>
+        )}
+      </div>
 
-              {step === 2 && (
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Communication Channel</Label>
-                    <div className="grid grid-cols-2 gap-4">
-                      {['EMAIL', 'SMS', 'WHATSAPP', 'RCS'].map(ch => (
-                        <div 
-                          key={ch} 
-                          onClick={() => setChannel(ch)}
-                          className={`p-4 border rounded-lg cursor-pointer text-center font-medium transition-colors ${channel === ch ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50'}`}
-                        >
-                          {ch}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {step === 3 && (
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <Label>Message Content</Label>
-                    <Button variant="outline" size="sm" onClick={handleDraftMessage} disabled={isDrafting}>
-                      {isDrafting ? 'Drafting...' : '✨ AI Draft'}
-                    </Button>
-                  </div>
-                  <Textarea 
-                    rows={8}
-                    value={message}
-                    onChange={e => setMessage(e.target.value)}
-                    placeholder={`Write your message here... Use {{name}} to personalize.`}
-                  />
-                </div>
-              )}
-
-              {step === 4 && (
-                <div className="space-y-4 bg-slate-50 p-4 rounded-lg">
-                  <h3 className="font-semibold text-lg">Review Campaign</h3>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div className="text-slate-500">Name:</div><div className="font-medium">{name}</div>
-                    <div className="text-slate-500">Segment:</div><div className="font-medium">{segments.find(s => s.id === segmentId)?.name}</div>
-                    <div className="text-slate-500">Channel:</div><div className="font-medium">{channel}</div>
-                  </div>
-                  <div className="mt-4">
-                    <div className="text-slate-500 text-sm mb-1">Message Preview:</div>
-                    <div className="p-3 bg-white border rounded whitespace-pre-wrap text-sm">{message.replace('{{name}}', 'Aditya')}</div>
-                  </div>
-                </div>
-              )}
+      {isCreating ? (
+        <Card className="border-slate-200 shadow-md">
+          <CardHeader className="bg-slate-50 border-b">
+            <CardTitle>Create New Campaign</CardTitle>
+            <CardDescription>Setup your audience, channel, and message.</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-6 space-y-6">
+            <div className="space-y-2">
+              <Label>Campaign Name</Label>
+              <Input placeholder="e.g. Winter VIP Sale" value={name} onChange={e => setName(e.target.value)} />
             </div>
 
-            <DialogFooter className="flex justify-between sm:justify-between">
-              <Button variant="outline" onClick={() => setStep(step - 1)} disabled={step === 1}>Back</Button>
-              {step < 4 ? (
-                <Button 
-                  onClick={() => setStep(step + 1)} 
-                  disabled={
-                    (step === 1 && (!name || !segmentId)) || 
-                    (step === 2 && !channel) ||
-                    (step === 3 && !message)
-                  }
-                >
-                  Next Step
-                </Button>
-              ) : (
-                <Button onClick={handleLaunch} disabled={isLaunching}>
-                  {isLaunching ? 'Launching...' : '🚀 Launch Campaign'}
-                </Button>
-              )}
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+            <div className="grid grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label>Target Segment</Label>
+                <Select value={segmentId} onValueChange={setSegmentId}>
+                  <SelectTrigger><SelectValue placeholder="Select a segment" /></SelectTrigger>
+                  <SelectContent>
+                    {segments.length === 0 && <SelectItem value="none" disabled>No segments saved yet</SelectItem>}
+                    {segments.map(seg => (
+                      <SelectItem key={seg.id} value={seg.id}>{seg.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Channel</Label>
+                <Select value={channel} onValueChange={setChannel}>
+                  <SelectTrigger><SelectValue placeholder="Select channel" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="EMAIL">Email</SelectItem>
+                    <SelectItem value="SMS">SMS</SelectItem>
+                    <SelectItem value="WHATSAPP">WhatsApp</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
-      <div className="rounded-md border bg-white">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Campaign Name</TableHead>
-              <TableHead>Channel</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Sent</TableHead>
-              <TableHead className="text-right">Delivered</TableHead>
-              <TableHead className="text-right">Opened</TableHead>
-              <TableHead className="text-right">Clicked</TableHead>
-              <TableHead className="text-right">Failed</TableHead>
-              <TableHead></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={9} className="text-center py-10 text-slate-500">Loading...</TableCell>
-              </TableRow>
-            ) : campaigns.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={9} className="text-center py-10 text-slate-500">No campaigns found.</TableCell>
-              </TableRow>
-            ) : (
-              campaigns.map((c) => (
-                <TableRow key={c.id}>
-                  <TableCell>
-                    <div className="font-medium">{c.name}</div>
-                    <div className="text-xs text-slate-500">{c.segment?.name}</div>
-                  </TableCell>
-                  <TableCell>{c.channel}</TableCell>
-                  <TableCell>
-                    <Badge variant={c.status === 'SENT' || c.status === 'SENDING' ? 'default' : c.status === 'DRAFT' ? 'secondary' : 'outline'}>
-                      {c.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">{c.sentCount}</TableCell>
-                  <TableCell className="text-right text-indigo-600 font-medium">{c.deliveredCount}</TableCell>
-                  <TableCell className="text-right text-emerald-600 font-medium">{c.openedCount}</TableCell>
-                  <TableCell className="text-right text-blue-600 font-medium">{c.clickedCount}</TableCell>
-                  <TableCell className="text-right text-red-600">{c.failedCount}</TableCell>
-                  <TableCell className="text-right">
-                    <Link href={`/campaigns/${c.id}`}>
-                      <Button variant="ghost" size="sm">View</Button>
-                    </Link>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+            <div className="space-y-2">
+              <div className="flex justify-between items-end">
+                <Label>Message Content</Label>
+                <Button variant="outline" size="sm" onClick={handleDraftMessage} disabled={isDrafting} className="text-indigo-600 border-indigo-200 hover:bg-indigo-50">
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  {isDrafting ? "Drafting..." : "Auto-Draft with AI"}
+                </Button>
+              </div>
+              <Textarea 
+                className="min-h-[150px]" 
+                placeholder="Write your message here..."
+                value={message}
+                onChange={e => setMessage(e.target.value)}
+              />
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <Button variant="ghost" onClick={() => setIsCreating(false)}>Cancel</Button>
+              <Button onClick={handleSendCampaign} disabled={isSending} className="bg-slate-900 hover:bg-slate-800">
+                <Send className="w-4 h-4 mr-2" />
+                Launch Campaign
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : campaigns.length > 0 ? (
+        <div className="space-y-4">
+          {campaigns.map(campaign => (
+            <Card key={campaign.id} className="border-slate-200 shadow-sm">
+              <CardContent className="p-6 flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">{campaign.name}</h3>
+                  <div className="flex gap-2 mt-1">
+                    <span className="text-sm px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                      {campaign.channel}
+                    </span>
+                    <span className="text-sm px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                      {campaign.status}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex gap-8 text-center">
+                  <div>
+                    <p className="text-2xl font-bold text-slate-900">{campaign.sentCount}</p>
+                    <p className="text-xs text-slate-500 uppercase tracking-wider">Sent</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-slate-900">{campaign.deliveredCount}</p>
+                    <p className="text-xs text-slate-500 uppercase tracking-wider">Delivered</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-indigo-600">{campaign.openedCount}</p>
+                    <p className="text-xs text-indigo-600 uppercase tracking-wider">Opened</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-emerald-600">{campaign.clickedCount}</p>
+                    <p className="text-xs text-emerald-600 uppercase tracking-wider">Clicked</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <Card className="border-dashed border-2 bg-slate-50 shadow-none">
+          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center mb-4">
+              <Activity className="h-6 w-6 text-indigo-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-slate-900">No active campaigns</h3>
+            <p className="text-slate-500 max-w-sm mt-2 mb-6">You haven't sent any campaigns yet. Create your first one to start tracking performance.</p>
+            <Button onClick={() => setIsCreating(true)} className="bg-indigo-600 hover:bg-indigo-700">
+              Create Campaign
+            </Button>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

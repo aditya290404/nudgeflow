@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { convertLogicToPrismaWhere } from '@/lib/segment-parser';
 
 export async function GET() {
   try {
@@ -23,9 +22,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    // Evaluate customer count dynamically
-    const where = convertLogicToPrismaWhere(filterLogic);
-    const customerCount = await prisma.customer.count({ where });
+    // Evaluate customer count dynamically directly using the filter logic as the 'where' clause
+    const customerCount = await prisma.customer.count({ where: filterLogic as any });
 
     const segment = await prisma.segment.create({
       data: {

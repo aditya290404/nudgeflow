@@ -1,90 +1,87 @@
 import { PrismaClient } from '@prisma/client';
+import { faker } from '@faker-js/faker';
 
 const prisma = new PrismaClient();
 
-const INDIAN_CITIES = ['Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Hyderabad', 'Pune'];
-const CATEGORIES = ['Kurta', 'Saree', 'Jeans', 'Sneakers', 'Accessories', 'Skincare', 'Makeup'];
-const FIRST_NAMES = ['Aarav', 'Vivaan', 'Aditya', 'Vihaan', 'Arjun', 'Sai', 'Reyansh', 'Ayaan', 'Krishna', 'Ishaan', 'Shaurya', 'Atharva', 'Aarush', 'Rudra', 'Kabir', 'Saanvi', 'Aadya', 'Kiara', 'Diya', 'Pihu', 'Prisha', 'Ananya', 'Myra', 'Kriti', 'Navya', 'Avni', 'Riya', 'Sara', 'Aalia', 'Mahika'];
-const LAST_NAMES = ['Sharma', 'Verma', 'Gupta', 'Kumar', 'Singh', 'Patel', 'Joshi', 'Reddy', 'Nair', 'Bose', 'Das', 'Roy', 'Iyer', 'Menon', 'Pillai', 'Rao', 'Deshmukh', 'Kulkarni', 'Jain', 'Agarwal', 'Garg', 'Bansal'];
-
-const getRandomInt = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1) + min);
-const getRandomElement = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
-const getRandomDate = (start: Date, end: Date) => new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
-
 async function main() {
-  console.log('Seeding database...');
-  
-  // Clear existing data
-  await prisma.communication.deleteMany();
-  await prisma.campaign.deleteMany();
-  await prisma.segment.deleteMany();
-  await prisma.order.deleteMany();
-  await prisma.customer.deleteMany();
+  console.log('Clearing existing data...');
+  await prisma.communication.deleteMany({});
+  await prisma.campaign.deleteMany({});
+  await prisma.segment.deleteMany({});
+  await prisma.order.deleteMany({});
+  await prisma.customer.deleteMany({});
 
-  const now = new Date();
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+  console.log('Generating Customers...');
+  const customers = Array.from({ length: 1500 }).map(() => ({
+    name: faker.person.fullName(),
+    email: faker.internet.email(),
+    phone: faker.phone.number(),
+    city: faker.location.city(),
+    totalOrders: 0,
+    totalSpend: 0,
+    tags: faker.helpers.arrayElements(['VIP', 'Churn Risk', 'New', 'Frequent Buyer', 'Discount Seeker', 'Holiday Shopper'], { min: 0, max: 3 }),
+    createdAt: faker.date.past({ years: 2 }),
+  }));
 
-  for (let i = 0; i < 300; i++) {
-    const firstName = getRandomElement(FIRST_NAMES);
-    const lastName = getRandomElement(LAST_NAMES);
-    const numOrders = getRandomInt(2, 8);
-    const createdAtDate = getRandomDate(new Date('2023-01-01'), now);
+  const createdCustomers = await prisma.customer.createManyAndReturn({
+    data: customers,
+  });
+
+  console.log(`Created ${createdCustomers.length} customers.`);
+
+  console.log('Generating Orders...');
+  const orders = [];
+  for (const customer of createdCustomers) {
+    // Generate between 0 and 10 orders for each customer
+    const numOrders = faker.number.int({ min: 0, max: 10 });
     
-    const customer = await prisma.customer.create({
-      data: {
-        name: `${firstName} ${lastName}`,
-        email: `${firstName.toLowerCase()}.${lastName.toLowerCase()}${i}@example.com`,
-        phone: `+91${getRandomInt(9000000000, 9999999999)}`,
-        city: getRandomElement(INDIAN_CITIES),
-        createdAt: createdAtDate,
-      }
-    });
-
     let totalSpend = 0;
-    let lastOrderDate: Date | null = null;
+    let lastOrderDate = customer.createdAt;
 
-    for (let j = 0; j < numOrders; j++) {
-      // Ensure order date is after customer creation date
-      const orderDate = getRandomDate(createdAtDate, now);
-      if (!lastOrderDate || orderDate > lastOrderDate) {
+    for (let i = 0; i < numOrders; i++) {
+      const amount = faker.number.float({ min: 10, max: 500, fractionDigits: 2 });
+      const orderDate = faker.date.between({ from: customer.createdAt, to: new Date() });
+      
+      totalSpend += amount;
+      if (orderDate > lastOrderDate) {
         lastOrderDate = orderDate;
       }
-      
-      const amount = getRandomInt(500, 15000);
-      totalSpend += amount;
 
-      await prisma.order.create({
-        data: {
-          customerId: customer.id,
-          amount,
-          category: getRandomElement(CATEGORIES),
-          createdAt: orderDate,
-        }
+      orders.push({
+        customerId: customer.id,
+        amount,
+        category: faker.commerce.department(),
+        status: faker.helpers.arrayElement(['completed', 'completed', 'completed', 'refunded', 'processing']),
+        createdAt: orderDate,
       });
     }
 
-    const tags: string[] = [];
-    if (totalSpend > 20000) tags.push('vip');
-    if (lastOrderDate && lastOrderDate < ninetyDaysAgo) tags.push('at_risk');
-    if (createdAtDate > thirtyDaysAgo) tags.push('new');
-
+    // Update customer aggregates
     await prisma.customer.update({
       where: { id: customer.id },
       data: {
         totalOrders: numOrders,
         totalSpend,
-        lastOrderDate,
-        tags,
+        lastOrderDate: numOrders > 0 ? lastOrderDate : null,
       }
     });
   }
 
-  console.log('Database seeded with 300 customers and their orders.');
+  // Batch insert orders
+  console.log(`Inserting ${orders.length} orders...`);
+  // Prisma createMany has limits, let's chunk it
+  const chunkSize = 1000;
+  for (let i = 0; i < orders.length; i += chunkSize) {
+    const chunk = orders.slice(i, i + chunkSize);
+    await prisma.order.createMany({ data: chunk });
+  }
+  console.log(`Created ${orders.length} orders.`);
+
+  console.log('Seeding complete!');
 }
 
 main()
-  .catch(e => {
+  .catch((e) => {
     console.error(e);
     process.exit(1);
   })
