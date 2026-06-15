@@ -133,7 +133,7 @@ export default function CampaignsPage() {
             <div className="grid grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label>Target Segment</Label>
-                <Select value={segmentId} onValueChange={setSegmentId}>
+                <Select value={segmentId} onValueChange={(val) => setSegmentId(val || "")}>
                   <SelectTrigger><SelectValue placeholder="Select a segment" /></SelectTrigger>
                   <SelectContent>
                     {segments.length === 0 && <SelectItem value="none" disabled>No segments saved yet</SelectItem>}
