@@ -1,0 +1,75 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Customer {
+  id             String          @id @default(cuid())
+  name           String
+  email          String          @unique
+  phone          String?
+  city           String?
+  totalOrders    Int             @default(0)
+  totalSpend     Float           @default(0)
+  lastOrderDate  DateTime?
+  tags           String[]
+  createdAt      DateTime        @default(now())
+  orders         Order[]
+  communications Communication[]
+}
+
+model Order {
+  id         String   @id @default(cuid())
+  customerId String
+  amount     Float
+  category   String
+  status     String   @default("completed")
+  createdAt  DateTime @default(now())
+  customer   Customer @relation(fields: [customerId], references: [id])
+}
+
+model Segment {
+  id                   String     @id @default(cuid())
+  name                 String
+  naturalLanguageQuery String?
+  filterLogic          Json
+  customerCount        Int        @default(0)
+  createdAt            DateTime   @default(now())
+  campaigns            Campaign[]
+}
+
+model Campaign {
+  id             String          @id @default(cuid())
+  name           String
+  segmentId      String
+  message        String
+  channel        String          // EMAIL | SMS | WHATSAPP | RCS
+  status         String          @default("DRAFT") // DRAFT | SENDING | SENT
+  sentCount      Int             @default(0)
+  deliveredCount Int             @default(0)
+  openedCount    Int             @default(0)
+  clickedCount   Int             @default(0)
+  failedCount    Int             @default(0)
+  createdAt      DateTime        @default(now())
+  segment        Segment         @relation(fields: [segmentId], references: [id])
+  communications Communication[]
+}
+
+model Communication {
+  id          String    @id @default(cuid())
+  campaignId  String
+  customerId  String
+  channel     String
+  message     String
+  status      String    @default("SENT") // SENT | DELIVERED | OPENED | CLICKED | FAILED
+  sentAt      DateTime  @default(now())
+  deliveredAt DateTime?
+  openedAt    DateTime?
+  clickedAt   DateTime?
+  campaign    Campaign  @relation(fields: [campaignId], references: [id])
+  customer    Customer  @relation(fields: [customerId], references: [id])
+}
