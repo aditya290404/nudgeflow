@@ -76,7 +76,8 @@ export async function POST(req: NextRequest) {
               message: comm.message,
               recipientName: comm.customer.name,
             }),
-          }).catch(async (error) => {
+          });
+        } catch (error) {
             console.error(`[Fallback] Could not reach channel-stub at ${CHANNEL_STUB_URL}. Simulating local delivery for demo purposes...`);
             
             // Simulating the channel-stub delivery directly in DB for Vercel deployment
@@ -101,7 +102,7 @@ export async function POST(req: NextRequest) {
                 clickedCount: { increment: isClicked ? 1 : 0 }
               }
             });
-          });
+        }
       }
       
       // Update campaign status to SENT after all dispatched
