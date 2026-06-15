@@ -1,36 +1,95 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# NudgeFlow - AI-Native Mini CRM
 
-## Getting Started
+Hey there! 👋 Welcome to my submission for the **Xeno Engineering Assignment**. 
 
-First, run the development server:
+I built **NudgeFlow**, a full-stack, AI-enhanced CRM designed for direct-to-consumer brands to analyze their audience, build complex segments, and launch targeted marketing campaigns.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+I wanted to go beyond just building a basic CRUD app, so I integrated **Google Gemini** to make the CRM truly "AI-Native" and implemented a robust database architecture to handle high-concurrency webhook scenarios.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🚀 Live Demo
+**Frontend URL:** [Insert Vercel Link Here]
+*(Note: Because Vercel is a serverless environment, the webhook simulation has a graceful fallback. For the full, real-time webhook experience, see the walkthrough video or run it locally!)*
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+**Walkthrough Video:** [Insert Video Link Here]
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## 🛠️ Tech Stack
 
-To learn more about Next.js, take a look at the following resources:
+- **Framework:** Next.js (App Router, React 19)
+- **Database:** PostgreSQL (hosted on Supabase)
+- **ORM:** Prisma
+- **Styling:** Tailwind CSS & shadcn/ui
+- **AI Integration:** Google Gemini (gemini-2.5-flash)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## ✨ Key Features & Architectural Decisions
 
-## Deploy on Vercel
+### 1. AI-Native Segment Builder 🧠
+Instead of forcing marketers to use clunky dropdown menus, I integrated the Google Gemini API. Users can type natural language prompts like:
+> *"Find high value customers who haven't bought anything in 6 months"*
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The backend securely feeds the Prisma schema and the current date into the AI, which instantly generates a perfectly formatted, 100% accurate Prisma `where` filter object. The backend then evaluates this directly against the PostgreSQL database to return the exact customer count.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### 2. Bulletproof Webhook Handling (No Race Conditions) 🛡️
+The assignment requires updating delivery stats (`DELIVERED`, `OPENED`, `CLICKED`) as webhooks hit the API. 
+If 500 webhooks hit the server at the exact same millisecond, standard database updates (e.g., `count = count + 1`) will cause severe race conditions and data loss. To solve this, I used **Prisma Atomic Increments** (`increment: 1`). This offloads the math directly to the PostgreSQL database engine, ensuring 100% data integrity no matter how high the concurrency is.
+
+### 3. Vercel Serverless Fallback ☁️
+Serverless platforms like Vercel instantly kill background tasks the moment an API response is returned. Since the `channel-stub` requires background execution to simulate delayed webhooks, I wrote a graceful fallback mechanism. If the app detects it's running on Vercel and cannot reach a local `channel-stub`, it mathematically simulates the delivery/open/click percentages synchronously in the database so the live demo remains fully functional.
+
+### 4. Premium UI/UX 🎨
+I built a responsive, modern interface using Tailwind CSS and standard shadcn/ui components to give it a clean, professional, "Vercel-like" aesthetic.
+
+---
+
+## 💻 How to Run Locally
+
+If you'd like to test the true end-to-end webhook architecture on your local machine:
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/aditya290404/nudgeflow.git
+   cd nudgeflow
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Set up Environment Variables**
+   Create a `.env` file in the root directory and add the following:
+   ```env
+   DATABASE_URL="your_postgresql_database_url"
+   GEMINI_API_KEY="your_google_gemini_api_key"
+   CHANNEL_STUB_URL="http://localhost:3001"
+   ```
+
+4. **Seed the Database**
+   I wrote a robust seed script that generates 1,500 hyper-realistic customers and over 7,000 randomized orders to make the dashboard look great.
+   ```bash
+   npm run db:seed
+   ```
+
+5. **Run the Servers**
+   You'll need two terminal windows:
+   
+   *Terminal 1 (Start the mock channel webhook service):*
+   ```bash
+   cd channel-stub
+   npm install
+   npm start
+   ```
+
+   *Terminal 2 (Start the Next.js CRM):*
+   ```bash
+   npm run dev
+   ```
+
+6. Open `http://localhost:3000` in your browser and start building segments!
+
+---
+
+*Thank you for reviewing my assignment! I had a lot of fun building this and would love to discuss the architectural decisions in an interview.*
