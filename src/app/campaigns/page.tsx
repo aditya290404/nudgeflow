@@ -145,7 +145,7 @@ export default function CampaignsPage() {
               </div>
               <div className="space-y-2">
                 <Label>Channel</Label>
-                <Select value={channel} onValueChange={setChannel}>
+                <Select value={channel} onValueChange={(val) => setChannel(val || "")}>
                   <SelectTrigger><SelectValue placeholder="Select channel" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="EMAIL">Email</SelectItem>
