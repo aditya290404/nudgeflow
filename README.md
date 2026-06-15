@@ -89,4 +89,4 @@ If you'd like to test the true end-to-end webhook architecture on your local mac
 
 ---
 
-*Thank you for reviewing my assignment! I had a lot of fun building this and would love to discuss the architectural decisions in an interview.*
+*Thank you for reviewing my assignment! I had a lot of fun building this.*
