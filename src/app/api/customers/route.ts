@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
 export async function GET(request: Request) {
@@ -38,6 +38,43 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error('[GET /api/customers]', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const data = await req.json();
+
+    if (!data.email) {
+      return NextResponse.json({ error: 'Missing required field: email' }, { status: 400 });
+    }
+
+    if (!data.name) {
+      return NextResponse.json({ error: 'Missing required field: name' }, { status: 400 });
+    }
+
+    // Upsert customer by email
+    const customer = await prisma.customer.upsert({
+      where: { email: data.email },
+      update: {
+        name: data.name,
+        phone: data.phone ?? undefined,
+        city: data.city ?? undefined,
+        tags: data.tags ? { push: data.tags } : undefined,
+      },
+      create: {
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        city: data.city,
+        tags: data.tags || [],
+      },
+    });
+
+    return NextResponse.json({ success: true, customer }, { status: 201 });
+  } catch (error: any) {
+    console.error('[POST /api/customers]', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

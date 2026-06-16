@@ -10,7 +10,7 @@ app.use(cors());
 app.use(express.json());
 
 const PORT = process.env.PORT || 3001;
-const CRM_BASE_URL = process.env.CRM_BASE_URL || 'http://localhost:3000';
+const CRM_BASE_URL = process.env.CRM_BASE_URL || 'http://127.0.0.1:3000';
 
 const delay = (min: number, max: number) => 
   new Promise(resolve => setTimeout(resolve, Math.floor(Math.random() * (max - min + 1) + min) * 1000));

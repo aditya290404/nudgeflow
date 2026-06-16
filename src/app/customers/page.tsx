@@ -9,6 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { CsvUploadButton } from "@/components/customers/csv-upload-button";
 
 export default async function CustomersPage() {
   const customers = await prisma.customer.findMany({
@@ -20,6 +21,7 @@ export default async function CustomersPage() {
     <div className="flex-1 space-y-4 p-8 pt-6">
       <div className="flex items-center justify-between space-y-2">
         <h2 className="text-3xl font-bold tracking-tight text-slate-900">Customers</h2>
+        <CsvUploadButton />
       </div>
       
       <div className="rounded-md border bg-white shadow-sm">
@@ -52,7 +54,7 @@ export default async function CustomersPage() {
                 </TableCell>
                 <TableCell className="text-right">{customer.totalOrders}</TableCell>
                 <TableCell className="text-right font-medium text-slate-900">
-                  ${customer.totalSpend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ₹{customer.totalSpend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </TableCell>
                 <TableCell className="text-right text-slate-500">
                   {customer.lastOrderDate ? format(customer.lastOrderDate, "MMM d, yyyy") : "Never"}

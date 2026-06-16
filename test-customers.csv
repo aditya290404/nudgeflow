@@ -1,0 +1,5 @@
+name,email,phone,city,tags
+Alice Smith,alice@example.com,555-0100,New York,"vip, newsletter"
+Bob Jones,bob@example.com,555-0101,London,recent_buyer
+Charlie Brown,charlie@example.com,,Chicago,
+Diana Prince,diana@example.com,555-0102,Paris,vip

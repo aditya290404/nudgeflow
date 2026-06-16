@@ -12,11 +12,11 @@ async function main() {
   await prisma.customer.deleteMany({});
 
   console.log('Generating Customers...');
-  const customers = Array.from({ length: 1500 }).map(() => ({
+  const customers = Array.from({ length: 1500 }).map((_, i) => ({
     name: faker.person.fullName(),
-    email: faker.internet.email(),
+    email: i + faker.internet.email(),
     phone: faker.phone.number(),
-    city: faker.location.city(),
+    city: faker.helpers.arrayElement(['Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Hyderabad', 'Pune']),
     totalOrders: 0,
     totalSpend: 0,
     tags: faker.helpers.arrayElements(['VIP', 'Churn Risk', 'New', 'Frequent Buyer', 'Discount Seeker', 'Holiday Shopper'], { min: 0, max: 3 }),
